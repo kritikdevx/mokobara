@@ -23,10 +23,11 @@ const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 app.get("/orders/:id", async (req, res) => {
   const id = req.params.id;
 
-  if (!id || id.trim() === "") {
-    res.status(400).json({ error: "Order ID is required" });
-  }
   try {
+    if (!id || id.trim() === "") {
+      res.status(400).json({ error: "Order ID is required" });
+    }
+
     const orderResponse = await fetch(SHOPIFY_URL, {
       method: "POST",
       headers: {
@@ -44,17 +45,6 @@ app.get("/orders/:id", async (req, res) => {
                 email
                 createdAt
                 updatedAt
-                billingAddress {
-                  firstName
-                  lastName
-                  address1
-                  address2
-                  city
-                  province
-                  country
-                  zip
-                  phone
-                }
                 shippingAddress {
                   firstName
                   lastName
