@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import dotenv from "dotenv";
 import { warrantyClaimSchema } from "./libs/validator";
 import { z } from "zod";
@@ -8,6 +9,8 @@ import { upload, uploadFileToSpace } from "./upload";
 
 const app = express();
 app.use(express.json());
+app.use(cors());
+
 dotenv.config();
 connect();
 
