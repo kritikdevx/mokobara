@@ -1,0 +1,289 @@
+import express from "express";
+import dotenv from "dotenv";
+import { warrantyClaimSchema } from "./libs/validator";
+import { z } from "zod";
+import connect from "./db";
+import { WarrantyClaim } from "./models/claims";
+import { upload, uploadFileToSpace } from "./upload";
+
+const app = express();
+app.use(express.json());
+dotenv.config();
+connect();
+
+const PORT = 8000;
+const SHOPIFY_URL = `https://${process.env.SHOPIFY_DOMAIN}/admin/api/2024-10/graphql.json`;
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
+
+/* Get all order details */
+
+app.get("/orders/:id", async (req, res) => {
+  const id = req.params.id;
+
+  if (!id || id.trim() === "") {
+    res.status(400).json({ error: "Order ID is required" });
+  }
+  try {
+    const orderResponse = await fetch(SHOPIFY_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({
+        query: `
+        query OrderByName($name: String!) {
+          orders(first: 1, query: $name) {
+            edges {
+              node {
+                id
+                name
+                email
+                createdAt
+                updatedAt
+                billingAddress {
+                  firstName
+                  lastName
+                  address1
+                  address2
+                  city
+                  province
+                  country
+                  zip
+                  phone
+                }
+                shippingAddress {
+                  firstName
+                  lastName
+                  address1
+                  address2
+                  city
+                  province
+                  country
+                  zip
+                  phone
+                }
+                customer {
+                  id
+                  displayName
+                  phone
+                  email
+                }
+                fulfillments {
+                  displayStatus
+                  deliveredAt
+                  createdAt
+                  updatedAt
+                }
+                lineItems(first: 250) {
+                  edges {
+                    node {
+                      title
+                      quantity
+                      product {
+                        id
+                        title
+                        productType
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }`,
+        variables: {
+          name: "name:" + id,
+        },
+      }),
+    })
+      .then((response) => response.json())
+      .catch((error) => {
+        console.error("Error:", error);
+        return null;
+      });
+
+    const order = orderResponse?.data?.orders?.edges[0]?.node || null;
+    const isDelivered = order?.fulfillments?.find(
+      (fulfillment: any) => fulfillment.displayStatus === "DELIVERED"
+    );
+
+    if (!isDelivered) {
+      res.status(400).json({ error: "Order is not delivered" });
+    } else {
+      if (!order) {
+        let products = [];
+        let cursor = null;
+        let hasNextPage = true;
+
+        while (hasNextPage) {
+          const productsResponse = await fetch(SHOPIFY_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+            },
+            body: JSON.stringify({
+              query: `
+                  query Products($cursor: String) {
+                    products(first: 250, after: $cursor) {
+                      pageInfo {
+                        hasNextPage
+                        endCursor
+                      }
+                      edges {
+                        node {
+                          id
+                          title
+                          productType
+                        }
+                      }
+                    }
+                  }`,
+              variables: {
+                cursor,
+              },
+            }),
+          })
+            .then((response) => response.json())
+            .catch((error) => {
+              console.error("Error:", error);
+              return null;
+            });
+
+          const ps =
+            productsResponse.data?.products?.edges?.map(
+              (edge: any) => edge.node
+            ) || [];
+
+          products.push(...ps);
+          const pageInfo: { hasNextPage?: boolean; endCursor?: string } =
+            productsResponse?.data?.products?.pageInfo;
+          hasNextPage = pageInfo?.hasNextPage ?? false;
+          cursor = pageInfo?.endCursor;
+        }
+
+        res.status(200).json({ products });
+      } else {
+        res.status(200).json({
+          order,
+        });
+      }
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/* Create a warranty claim */
+
+app.post(
+  "/warranty/claim",
+  upload.fields([
+    { name: "invoice", maxCount: 1 },
+    { name: "images", maxCount: 5 },
+  ]),
+  async (req, res) => {
+    try {
+      const invoice =
+        req.files && "invoice" in req.files ? req.files.invoice[0] : undefined;
+
+      const images = req.files && "images" in req.files ? req.files.images : [];
+
+      if (!invoice) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: [{ field: "invoice", message: "Invoice is required" }],
+        });
+      }
+
+      if (images.length < 1 || images.length > 5) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: [
+            { field: "images", message: "Between 1-5 images are required" },
+          ],
+        });
+      }
+
+      const invoiceUrl = await uploadFileToSpace(
+        invoice.buffer,
+        invoice.originalname,
+        invoice.mimetype,
+        "warranty-claims/",
+        process.env.BUCKET_NAME!
+      );
+
+      const imageUrls = await Promise.all(
+        images.map((image: Express.Multer.File) =>
+          uploadFileToSpace(
+            image.buffer,
+            image.originalname,
+            image.mimetype,
+            "warranty-claims/",
+            process.env.BUCKET_NAME!
+          )
+        )
+      );
+
+      const data = warrantyClaimSchema.parse({
+        ...req.body,
+        invoice: invoiceUrl,
+        images: imageUrls,
+      });
+
+      const response = await fetch(process.env.GOOGLE_SPREADSHEET_LINK!, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error("Failed");
+          }
+          return {
+            success: true,
+          };
+        })
+        .catch((err) => {
+          console.error(err);
+          return { success: false };
+        });
+
+      if (!response.success) {
+        return res.status(400).json({ error: "Failed" });
+      }
+
+      const warrantyClaim = await WarrantyClaim.create({
+        ...data,
+        invoice: invoiceUrl,
+        images: imageUrls,
+      });
+
+      res
+        .status(201)
+        .json({ message: "Warranty claim created", data: warrantyClaim });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const formattedErrors = error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        }));
+
+        res.status(400).json({
+          message: "Validation error",
+          errors: formattedErrors,
+        });
+      } else {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    }
+  }
+);
+
+app.listen(PORT, () => {
+  console.log(`Server started at http://localhost:${PORT}`);
+});
