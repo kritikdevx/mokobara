@@ -14,7 +14,7 @@ app.use(cors());
 dotenv.config();
 connect();
 
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
 const SHOPIFY_URL = `https://${process.env.SHOPIFY_DOMAIN}/admin/api/2024-10/graphql.json`;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 
