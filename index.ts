@@ -86,7 +86,7 @@ app.get("/orders/:id", async (req, res) => {
           }
         }`,
         variables: {
-          name: "name:" + id,
+          name: "name:#" + id,
         },
       }),
     })
@@ -166,6 +166,10 @@ app.get("/orders/:id", async (req, res) => {
           products,
         });
       } else {
+        const products = order.lineItems.edges.map(
+          (edge: any) => edge.node.product
+        );
+        order.lineItems = products;
         res.status(200).json({
           success: true,
           order,
