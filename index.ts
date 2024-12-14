@@ -97,12 +97,17 @@ app.get("/orders/:id", async (req, res) => {
       });
 
     const order = orderResponse?.data?.orders?.edges[0]?.node || null;
-    const isDelivered = order?.fulfillments?.find(
-      (fulfillment: any) => fulfillment.displayStatus === "DELIVERED"
-    );
+    const isDelivered =
+      order &&
+      order?.fulfillments?.find(
+        (fulfillment: any) => fulfillment.displayStatus === "DELIVERED"
+      );
 
     if (!isDelivered) {
-      res.status(400).json({ error: "Order is not delivered" });
+      res.status(400).json({
+        success: false,
+        error: "Order is not delivered yet",
+      });
     } else {
       if (!order) {
         let products = [];
@@ -156,15 +161,22 @@ app.get("/orders/:id", async (req, res) => {
           cursor = pageInfo?.endCursor;
         }
 
-        res.status(200).json({ products });
+        res.status(200).json({
+          success: true,
+          products,
+        });
       } else {
         res.status(200).json({
+          success: true,
           order,
         });
       }
     }
   } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
   }
 });
 
@@ -185,17 +197,15 @@ app.post(
 
       if (!invoice) {
         return res.status(400).json({
-          message: "Validation error",
-          errors: [{ field: "invoice", message: "Invoice is required" }],
+          success: false,
+          error: "Invoice is required",
         });
       }
 
       if (images.length < 1 || images.length > 5) {
         return res.status(400).json({
-          message: "Validation error",
-          errors: [
-            { field: "images", message: "Between 1-5 images are required" },
-          ],
+          success: false,
+          error: "Between 1-5 images are required",
         });
       }
 
@@ -247,7 +257,10 @@ app.post(
         });
 
       if (!response.success) {
-        return res.status(400).json({ error: "Failed" });
+        return res.status(400).json({
+          success: false,
+          error: "Failed",
+        });
       }
 
       const warrantyClaim = await WarrantyClaim.create({
@@ -256,9 +269,11 @@ app.post(
         images: imageUrls,
       });
 
-      res
-        .status(201)
-        .json({ message: "Warranty claim created", data: warrantyClaim });
+      res.status(201).json({
+        success: true,
+        message: "Warranty claim created",
+        data: warrantyClaim,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         const formattedErrors = error.errors.map((err) => ({
@@ -267,11 +282,14 @@ app.post(
         }));
 
         res.status(400).json({
-          message: "Validation error",
-          errors: formattedErrors,
+          success: false,
+          error: formattedErrors[0].message,
         });
       } else {
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({
+          success: false,
+          error: "Internal server error",
+        });
       }
     }
   }
