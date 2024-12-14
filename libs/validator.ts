@@ -8,6 +8,9 @@ export const warrantyClaimSchema = z.object({
     .regex(/^\+?\d{10,15}$/, { message: "Invalid phone number" }),
   address: z.string().min(1, { message: "Address is required" }),
   order_number: z.string().min(1, { message: "Order number is required" }),
+  order_date: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid order date format",
+  }),
   product_type: z.string().min(1, { message: "Product type is required" }),
   product_name: z.string().min(1, { message: "Product name is required" }),
   description: z.string().trim().optional(),

@@ -240,39 +240,30 @@ app.post(
         images: imageUrls,
       });
 
+      const warrantyClaim = await WarrantyClaim.create({
+        ...data,
+        invoice: invoiceUrl,
+        images: imageUrls,
+      });
+
       const response = await fetch(process.env.GOOGLE_SPREADSHEET_LINK!, {
         method: "POST",
         mode: "no-cors",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(warrantyClaim),
       })
         .then((res) => {
           if (!res.ok) {
             throw new Error("Failed");
           }
-          return {
-            success: true,
-          };
+          return { success: true };
         })
         .catch((err) => {
           console.error(err);
           return { success: false };
         });
-
-      if (!response.success) {
-        return res.status(400).json({
-          success: false,
-          error: "Failed",
-        });
-      }
-
-      const warrantyClaim = await WarrantyClaim.create({
-        ...data,
-        invoice: invoiceUrl,
-        images: imageUrls,
-      });
 
       res.status(201).json({
         success: true,
