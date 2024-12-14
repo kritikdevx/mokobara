@@ -97,32 +97,21 @@ app.get("/orders/:id", async (req, res) => {
       });
 
     const order = orderResponse?.data?.orders?.edges[0]?.node || null;
-    const isDelivered =
-      order &&
-      order?.fulfillments?.find(
-        (fulfillment: any) => fulfillment.displayStatus === "DELIVERED"
-      );
 
-    if (!isDelivered) {
-      res.status(400).json({
-        success: false,
-        error: "Order is not delivered yet",
-      });
-    } else {
-      if (!order) {
-        let products = [];
-        let cursor = null;
-        let hasNextPage = true;
+    if (!order) {
+      let products = [];
+      let cursor = null;
+      let hasNextPage = true;
 
-        while (hasNextPage) {
-          const productsResponse = await fetch(SHOPIFY_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-            },
-            body: JSON.stringify({
-              query: `
+      while (hasNextPage) {
+        const productsResponse = await fetch(SHOPIFY_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+          },
+          body: JSON.stringify({
+            query: `
                   query Products($cursor: String) {
                     products(first: 250, after: $cursor) {
                       pageInfo {
@@ -138,38 +127,50 @@ app.get("/orders/:id", async (req, res) => {
                       }
                     }
                   }`,
-              variables: {
-                cursor,
-              },
-            }),
-          })
-            .then((response) => response.json())
-            .catch((error) => {
-              console.error("Error:", error);
-              return null;
-            });
+            variables: {
+              cursor,
+            },
+          }),
+        })
+          .then((response) => response.json())
+          .catch((error) => {
+            console.error("Error:", error);
+            return null;
+          });
 
-          const ps =
-            productsResponse.data?.products?.edges?.map(
-              (edge: any) => edge.node
-            ) || [];
+        const ps =
+          productsResponse.data?.products?.edges?.map(
+            (edge: any) => edge.node
+          ) || [];
 
-          products.push(...ps);
-          const pageInfo: { hasNextPage?: boolean; endCursor?: string } =
-            productsResponse?.data?.products?.pageInfo;
-          hasNextPage = pageInfo?.hasNextPage ?? false;
-          cursor = pageInfo?.endCursor;
-        }
+        products.push(...ps);
+        const pageInfo: { hasNextPage?: boolean; endCursor?: string } =
+          productsResponse?.data?.products?.pageInfo;
+        hasNextPage = pageInfo?.hasNextPage ?? false;
+        cursor = pageInfo?.endCursor;
+      }
 
-        res.status(200).json({
-          success: true,
-          products,
+      res.status(200).json({
+        success: true,
+        products,
+      });
+    } else {
+      const isDelivered = order?.fulfillments?.find(
+        (fulfillment: any) => fulfillment.displayStatus === "DELIVERED"
+      );
+
+      if (!isDelivered) {
+        res.status(400).json({
+          success: false,
+          error: "Order is not delivered yet",
         });
       } else {
         const products = order.lineItems.edges.map(
           (edge: any) => edge.node.product
         );
+
         order.lineItems = products;
+
         res.status(200).json({
           success: true,
           order,
