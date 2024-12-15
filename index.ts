@@ -1,11 +1,12 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { warrantyClaimSchema } from "./libs/validator";
 import { z } from "zod";
+import { warrantyClaimSchema } from "./libs/validator";
 import connect from "./db";
 import { WarrantyClaim } from "./models/claims";
 import { upload, uploadFileToSpace } from "./upload";
+import { MulterError } from "multer";
 
 const app = express();
 app.use(express.json());
@@ -290,6 +291,34 @@ app.post(
     }
   }
 );
+
+app.use((err: MulterError, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof MulterError) {
+    console.error("Multer error:", err.field, err.message);
+    switch (err.code) {
+      case "LIMIT_FILE_SIZE":
+        return res.status(400).json({
+          success: false,
+          error: `File size too large for field: ${err.field}`,
+        });
+      case "LIMIT_UNEXPECTED_FILE":
+        return res.status(400).json({
+          success: false,
+          error: `Max files exceeded for field: ${err.field}`,
+        });
+      default:
+        return res.status(400).json({
+          success: false,
+          error: `Multer error (${err.field}): ${err.message}`,
+        });
+    }
+  }
+
+  res.status(500).json({
+    success: false,
+    error: "Internal server error.",
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server started at http://localhost:${PORT}`);
