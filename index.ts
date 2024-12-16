@@ -19,6 +19,78 @@ const PORT = process.env.PORT || 8000;
 const SHOPIFY_URL = `https://${process.env.SHOPIFY_DOMAIN}/admin/api/2024-10/graphql.json`;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 
+/* Get all products */
+
+app.get("/products/all", async (req, res) => {
+  try {
+    let products = [];
+    let cursor = null;
+    let hasNextPage = true;
+
+    while (hasNextPage) {
+      const productsResponse = await fetch(SHOPIFY_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+        },
+        body: JSON.stringify({
+          query: `
+                query Products($cursor: String) {
+                  products(first: 250, after: $cursor) {
+                    pageInfo {
+                      hasNextPage
+                      endCursor
+                    }
+                    edges {
+                      node {
+                        id
+                        title
+                        productType
+                      }
+                    }
+                  }
+                }`,
+          variables: {
+            cursor,
+          },
+        }),
+      })
+        .then((response) => response.json())
+        .catch((error) => {
+          console.error("Error:", error);
+          return null;
+        });
+
+      const ps =
+        productsResponse.data?.products?.edges?.map((edge: any) => edge.node) ||
+        [];
+
+      products.push(...ps);
+      const pageInfo: { hasNextPage?: boolean; endCursor?: string } =
+        productsResponse?.data?.products?.pageInfo;
+      hasNextPage = pageInfo?.hasNextPage ?? false;
+      cursor = pageInfo?.endCursor;
+    }
+
+    const productTypes = products.map((product: any) => product.productType);
+
+    const uniqueProductTypes = [...new Set(productTypes)];
+
+    res.status(200).json({
+      success: true,
+      message: "Products fetched",
+      products,
+      productTypes: uniqueProductTypes,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+});
+
 /* Get all order details */
 
 app.get("/orders/:id", async (req, res) => {
