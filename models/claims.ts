@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 
 const WarrantyClaimSchema = new mongoose.Schema({
+  platform_name: {
+    type: String,
+    required: true,
+  },
   full_name: {
     type: String,
     required: true,
