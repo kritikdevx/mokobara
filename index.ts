@@ -335,17 +335,18 @@ app.post(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(warrantyClaim),
-      })
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error("Failed");
-          }
-          return { success: true };
-        })
-        .catch((err) => {
-          console.error(err);
-          return { success: false };
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Failed to send data to Google Spreadsheet", {
+          status: response.status,
+          statusText: response.statusText,
+          responseBody: errorText,
         });
+      } else {
+        console.log("Successfully sent data to Google Spreadsheet");
+      }
 
       res.status(201).json({
         success: true,
