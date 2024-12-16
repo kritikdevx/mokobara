@@ -113,7 +113,6 @@ app.get("/orders/:id", async (req, res) => {
           orders(first: 1, query: $name) {
             edges {
               node {
-                id
                 name
                 email
                 createdAt
@@ -130,7 +129,6 @@ app.get("/orders/:id", async (req, res) => {
                   phone
                 }
                 customer {
-                  id
                   displayName
                   phone
                   email
