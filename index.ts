@@ -151,9 +151,16 @@ app.get("/orders/:id", async (req, res) => {
         cursor = pageInfo?.endCursor;
       }
 
+      const productTypes = products.map((product: any) => product.productType);
+
+      const uniqueProductTypes = [...new Set(productTypes)];
+
       res.status(200).json({
         success: true,
+        message: "Order not found",
         products,
+        productTypes: uniqueProductTypes,
+        isShopifyOrder: false,
       });
     } else {
       const isDelivered = order?.fulfillments?.find(
@@ -161,9 +168,11 @@ app.get("/orders/:id", async (req, res) => {
       );
 
       if (!isDelivered) {
-        res.status(400).json({
-          success: false,
-          error: "Order is not delivered yet",
+        res.status(200).json({
+          success: true,
+          message: "Order is not delivered yet",
+          isDelivered: false,
+          isShopifyOrder: true,
         });
       } else {
         const products = order.lineItems.edges.map(
@@ -174,7 +183,10 @@ app.get("/orders/:id", async (req, res) => {
 
         res.status(200).json({
           success: true,
+          message: "Order is delivered",
           order,
+          isDelivered: true,
+          isShopifyOrder: true,
         });
       }
     }
