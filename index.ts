@@ -331,7 +331,6 @@ app.post(
 
       const response = await fetch(process.env.GOOGLE_SPREADSHEET_LINK!, {
         method: "POST",
-        mode: "no-cors",
         headers: {
           "Content-Type": "application/json",
         },
