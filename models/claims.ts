@@ -21,6 +21,14 @@ const WarrantyClaimSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  city: {
+    type: String,
+    required: true,
+  },
+  pincode: {
+    type: String,
+    required: true,
+  },
   order_number: {
     type: String,
     required: true,
@@ -50,6 +58,7 @@ const WarrantyClaimSchema = new mongoose.Schema({
   },
   video: {
     type: String,
+    required: true,
   },
   po_number: {
     type: String,

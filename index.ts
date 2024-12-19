@@ -304,7 +304,7 @@ app.post(
       if (!video) {
         return res.status(400).json({
           success: false,
-          error: "Video is not supported",
+          error: "Video is required",
         });
       }
 

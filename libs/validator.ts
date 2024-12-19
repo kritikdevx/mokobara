@@ -20,6 +20,14 @@ export const warrantyClaimSchema = z.object({
     .string({ message: "Address is required" })
     .trim()
     .min(1, { message: "Address is required" }),
+  city: z
+    .string({ message: "City is required" })
+    .trim()
+    .min(1, { message: "City is required" }),
+  pincode: z
+    .string({ message: "Pincode is required" })
+    .trim()
+    .min(1, { message: "Pincode is required" }),
   order_number: z
     .string({ message: "Order number is required" })
     .trim()
@@ -46,6 +54,6 @@ export const warrantyClaimSchema = z.object({
     .array(z.string())
     .min(1, { message: "Images are required" })
     .max(5, { message: "Maximum of 5 images allowed" }),
-  video: z.string().optional(),
+  video: z.string().min(1, { message: "Video is required" }),
   po_number: z.string().trim().min(1, { message: "PO number is required" }),
 });
