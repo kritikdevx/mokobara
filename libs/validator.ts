@@ -46,5 +46,6 @@ export const warrantyClaimSchema = z.object({
     .array(z.string())
     .min(1, { message: "Images are required" })
     .max(5, { message: "Maximum of 5 images allowed" }),
+  video: z.string().optional(),
   po_number: z.string().trim().min(1, { message: "PO number is required" }),
 });

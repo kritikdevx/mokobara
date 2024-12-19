@@ -275,6 +275,7 @@ app.post(
   upload.fields([
     { name: "invoice", maxCount: 1 },
     { name: "images", maxCount: 5 },
+    { name: "video", maxCount: 1 },
   ]),
   async (req, res) => {
     try {
@@ -282,6 +283,9 @@ app.post(
         req.files && "invoice" in req.files ? req.files.invoice[0] : undefined;
 
       const images = req.files && "images" in req.files ? req.files.images : [];
+
+      const video =
+        req.files && "video" in req.files ? req.files.video[0] : undefined;
 
       if (!invoice) {
         return res.status(400).json({
@@ -294,6 +298,13 @@ app.post(
         return res.status(400).json({
           success: false,
           error: "Between 1-5 images are required",
+        });
+      }
+
+      if (!video) {
+        return res.status(400).json({
+          success: false,
+          error: "Video is not supported",
         });
       }
 
@@ -317,16 +328,26 @@ app.post(
         )
       );
 
+      const videoUrl = await uploadFileToSpace(
+        video.buffer,
+        video.originalname,
+        video.mimetype,
+        "warranty-claims/",
+        process.env.BUCKET_NAME!
+      );
+
       const data = warrantyClaimSchema.parse({
         ...req.body,
         invoice: invoiceUrl,
         images: imageUrls,
+        video: videoUrl,
       });
 
       const warrantyClaim = await WarrantyClaim.create({
         ...data,
         invoice: invoiceUrl,
         images: imageUrls,
+        video: videoUrl,
       });
 
       const response = await fetch(process.env.GOOGLE_SPREADSHEET_LINK!, {

@@ -48,10 +48,13 @@ const WarrantyClaimSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  video: {
+    type: String,
+  },
   po_number: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 });
 
 export const WarrantyClaim = mongoose.model(
