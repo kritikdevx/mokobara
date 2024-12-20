@@ -35,9 +35,9 @@ app.get("/products/all", async (req, res) => {
           "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
         },
         body: JSON.stringify({
-          query: `
+          query:`
                 query Products($cursor: String) {
-                  products(first: 250, after: $cursor) {
+                  products(first: 250, after: $cursor, query: "status:ACTIVE") {
                     pageInfo {
                       hasNextPage
                       endCursor
